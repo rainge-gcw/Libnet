@@ -126,5 +126,26 @@ namespace xiasui{
     };
 }
 #endif //SHARE_STL_RPC_STL_H
-
+#include "RPC_STL.h"
+#include <iostream>
+using namespace xiasui;
+int main (int argc, char *argv[]){
+    if(argc == 1){
+        auto it=stl_queue<int,double>(option::create_only,"stl_queue2",65536,100);
+        std::map<int, double> mp;
+        mp[123]=9.6;
+        mp[1421]=21.2134;
+        it.send_map(mp);
+        std::string s(argv[0]); s += " child ";
+        if(0 != std::system(s.c_str()))
+            return 1;
+    }else{
+        auto it=stl_queue<int,double>(option::open_only,"stl_queue2");
+        auto* mp=it.get(0);
+        for(auto i:*mp){
+            std::cout<<i.first<<" "<<i.second<<std::endl;
+        }
+        it.destroy(id);
+    }
+}
 ```
