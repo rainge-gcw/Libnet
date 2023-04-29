@@ -50,22 +50,21 @@ namespace xiasui{
         typedef map<KeyType, MappedType, std::less<KeyType>, ShmemAllocator> MyMap;
         RPC_STL()=delete;
 
-        RPC_STL(const create_only_t op,std::string name,u_int segment_memory,u_int max_massage_number):
-
-                name_(std::move(name)),
-                mq_(message_queue(create_only,name_.c_str(),max_massage_number,sizeof(u_int))),
-                segment_(create_only,name.c_str(),segment_memory),
+        RPC_STL(const std::string& name,u_int segment_memory,u_int max_massage_number):
+                name_(name),
+                mq_(message_queue(create_only,(name+"mq").c_str(),max_massage_number,sizeof(u_int))),
+                segment_(create_only,(name+"seg").c_str(),segment_memory),
                 alloc_inst_(segment_.get_segment_manager())
-        {std::cout<<"3"<<std::endl;};
-        RPC_STL(const open_only_t op,std::string name):
-                name_(std::move(name)),
-                mq_(message_queue(open_only,name_.c_str())),
-                segment_(open_only,name.c_str()),
+        {};
+        explicit RPC_STL(const std::string& name):
+                name_(name),
+                mq_(message_queue(open_only,(name+"mq").c_str())),
+                segment_(open_only,(name+"seg").c_str()),
                 alloc_inst_(segment_.get_segment_manager())
         {};
         void kill(){
-            shared_memory_object::remove(name_.c_str());
-            message_queue::remove(name_.c_str());
+            shared_memory_object::remove((name_+"seg").c_str());
+            message_queue::remove((name_+"mq").c_str());
         }
         void send_map(std::map<KeyType,MappedType>&mp){
             MyMap* mymap=segment_.construct<MyMap>(std::to_string(++massage_id_).c_str())      //object name
@@ -98,14 +97,14 @@ namespace xiasui{
         typedef allocator<ValueType, managed_shared_memory::segment_manager> ShmemAllocator;
         typedef map<KeyType, MappedType, std::less<KeyType>, ShmemAllocator> MyMap;
     public:
-        stl_queue(const option op,std::string name,int segment_memory=65536,int max_massage_number=10)
+        stl_queue(const option op,const std::string &name,int segment_memory=65536,int max_massage_number=10)
         {
-            shared_memory_object::remove(name.c_str());
-            std::cout<<"2"<<std::endl;
             if(op==option::create_only){
-                rpc=new RPC_STL<KeyType,MappedType>(create_only,name,u_int(segment_memory),u_int(max_massage_number));
+                shared_memory_object::remove((name+"seg").c_str());
+                message_queue::remove((name+"mq").c_str());
+                rpc=new RPC_STL<KeyType,MappedType>(name,u_int(segment_memory),u_int(max_massage_number));
             }else if(op==option::open_only){
-                rpc=new RPC_STL<KeyType,MappedType>(open_only,name);
+                rpc=new RPC_STL<KeyType,MappedType>(name);
             }
         }
         ~stl_queue(){
@@ -141,7 +140,8 @@ int main (int argc, char *argv[]){
             return 1;
     }else{
         auto it=stl_queue<int,double>(option::open_only,"stl_queue2");
-        auto* mp=it.get(0);
+        u_int id=0;
+        auto* mp=it.get(id);
         for(auto i:*mp){
             std::cout<<i.first<<" "<<i.second<<std::endl;
         }
